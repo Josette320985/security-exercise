@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security API Exercise</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Security API Exercise</h1>
+    <p>Interact with the protected API endpoints using the buttons below.</p>
+  </header>
+
+  <main>
+    <section aria-labelledby="actions-heading">
+      <h2 id="actions-heading">API Actions</h2>
+      <div class="button-group">
+        <!-- IMPORTANTE: estos IDs deben ser exactamente 'getBtn' y 'postBtn' -->
+        <button type="button" id="getBtn">Get Protected Data</button>
+        <button type="button" id="postBtn">Send POST Request</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="response-heading">
+      <h2 id="response-heading">Response</h2>
+      <!-- IMPORTANTE: este ID debe ser 'responseDisplay' -->
+      <pre id="responseDisplay">Waiting for request...</pre>
+    </section>
+  </main>
+
+  <footer>
+    <p>Security Exercise Frontend</p>
+  </footer>
+
+  <!-- Carga de JavaScript al final para que los elementos existan -->
+  <script src="app.js"></script>
+</body>
+</html>
