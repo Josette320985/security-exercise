@@ -1,19 +1,13 @@
-FROM python:3.11-alpine
+FROM nginx:alpine
 
-WORKDIR /app
+RUN apk add --no-cache gettext
 
-# Instalar dependencias
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY nginx.conf /etc/nginx/nginx.conf.template
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Copiar código
-COPY app.py .
-COPY config.py .
-COPY crypto_service.py .
-COPY rotate_secret.py .
+COPY html/ /usr/share/nginx/html
 
-# Exponer puerto
-EXPOSE 3000
+EXPOSE 80
 
-# Comando: inicia el rotador en segundo plano y luego Flask
-CMD sh -c "python rotate_secret.py & python app.py"
+ENTRYPOINT ["sh", "/entrypoint.sh"]
