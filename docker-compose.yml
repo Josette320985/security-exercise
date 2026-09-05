@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./security-api
+    container_name: security-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - API_SECRET=my-secret-api-key-123
+      - DB_ENCRYPTION_KEY=3LowejF-NglaBPMnnTn9zh-6KpU60BRMu-HESqq8pbk=   # (usa tu clave real)
+    volumes:
+      - ./security-frontend/html:/shared-html   # Monta la carpeta html del frontend
+
+  frontend:
+    build:
+      context: ./security-frontend
+    container_name: security-frontend
+    ports:
+      - "8080:80"
+    environment:
+      - API_SECRET=my-secret-api-key-123        # Se inyecta también en el frontend para el entrypoint
+    volumes:
+      - ./security-frontend/html:/usr/share/nginx/html   # NGINX sirve los mismos archivos
+    depends_on:
+      - backend
