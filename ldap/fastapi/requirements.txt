@@ -1,4 +1,0 @@
-fastapi
-uvicorn[standard]
-ldap3
-pydantic
