@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------
+  # Backend service: Flask API with AES encryption and secret rotation
+  # ---------------------------------------------------------------
+  backend:
+    build:
+      context: ./security-api
+    container_name: security-backend
+    ports:
+      - "3000:3000"
+    environment:
+      # Initial API key shared with the frontend (rotated every 2 minutes)
+      - API_SECRET=my-secret-api-key-123
+      # Base64-encoded 32-byte key for AES-256-GCM encryption
+      - DB_ENCRYPTION_KEY=3LowejF-NglaBPMnnTn9zh-6KpU60BRMu-HESqq8pbk=
+      # URL of the LDAP API (used by the backend if needed)
+      - LDAP_API_URL=http://ldap-api:8000
+      # Initial LDAP API key (rotated every 2 minutes)
+      - LDAP_API_KEY=ldap-secret-initial-key
+    volumes:
+      # Shared volume with the frontend so the rotator can update app.js and login.js
+      - ./security-frontend/html:/shared-html
+    depends_on:
+      - ldap-api
+    networks:
+      - security-net
+
+  # ---------------------------------------------------------------
+  # Frontend service: Nginx serving static HTML/JS/CSS
+  # Proxies /api/* to backend and /ldap/* to ldap-api
+  # ---------------------------------------------------------------
+  frontend:
+    build:
+      context: ./security-frontend
+    container_name: security-frontend
+    ports:
+      - "8080:80"
+    environment:
+      # Initial secrets injected into the JS files at container startup
+      - API_SECRET=my-secret-api-key-123
+      - LDAP_API_KEY=ldap-secret-initial-key
+      # Backend URL for the Nginx proxy
+      - BACKEND_URL=http://backend:3000
+       # LDAP API URL for the Nginx proxy
+      - LDAP_API_URL=http://ldap-api:8000
+    volumes:
+      # The frontend serves the same HTML folder that the rotator updates
+      - ./security-frontend/html:/usr/share/nginx/html
+    depends_on:
+      - backend
+      - ldap-api
+    networks:
+      - security-net
+
+  # ---------------------------------------------------------------
+  # LDAP API service: FastAPI that authenticates users against OpenLDAP
+  # Runs on port 8000 (different from frontend 8080 and backend 3000)
+  # ---------------------------------------------------------------      
+  ldap-api:
+    build:
+      context: ./ldap/fastapi
+    container_name: ldap-api
+    ports:
+      - "8000:8000"
+    environment:
+       # OpenLDAP connection settings
+      LDAP_HOST: openldap
+      LDAP_PORT: "389"
+      LDAP_BASE_DN: "dc=example,dc=com"
+      LDAP_ADMIN_PASSWORD: "adminpassword"
+      # Initial LDAP API key (rotated every 2 minutes)
+      LDAP_API_KEY: ldap-secret-initial-key
+    depends_on:
+      - openldap
+    volumes:
+      # Shared volume to read the rotated LDAP secret
+      - ./security-frontend/html:/shared-html
+    networks:
+      - security-net
+
+  # ---------------------------------------------------------------
+  # OpenLDAP service: LDAP directory server
+  # Uses --copy-service to avoid "Device or resource busy" errors on Windows
+  # ---------------------------------------------------------------    
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: openldap
+    hostname: ldap.example.com
+    # Required on Windows: copies bootstrap files to a writable internal dir
+    command: --copy-service
+    environment:
+      LDAP_ORGANISATION: "Example Corp"
+      LDAP_DOMAIN: "example.com"
+      LDAP_ADMIN_PASSWORD: "adminpassword"
+    ports:
+      - "389:389"
+      - "636:636"
+    volumes:
+      - ldap_data:/var/lib/ldap
+      - ldap_config:/etc/ldap/slapd.d
+      - ./ldap/ldap:/container/service/slapd/assets/config/bootstrap/ldif/custom
+    networks:
+      - security-net
+
+  # ---------------------------------------------------------------
+  # phpLDAPadmin: Web UI to inspect the LDAP directory
+  # Runs on port 8081 (to avoid conflict with the frontend on 8080)
+  # ---------------------------------------------------------------
+  phpldapadmin:
+    image: osixia/phpldapadmin:latest
+    container_name: phpldapadmin
+    hostname: phpldapadmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "openldap"
+      PHPLDAPADMIN_HTTPS: "false"
+    ports:
+      - "8081:80"
+    depends_on:
+      - openldap
+    networks:
+      - security-net
+
+volumes:
+  ldap_data:
+  ldap_config:
+
+networks:
+  security-net:
+    driver: bridge
